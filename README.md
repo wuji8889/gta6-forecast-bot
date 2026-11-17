@@ -22,8 +22,12 @@ own comparables (past big game launches' hourly Twitch curves, SullyGnome):
   hour-1 print: `>= 50,000` uses only comparables with hour-1 `>= 50,000`;
   `>= 20,000` uses that tier; below that, all comparables. A tier with
   fewer than 5 launches falls back to the next wider one.
+- Within a tier, launches are weighted by how close their own hour-1
+  print is to the case's, in log space (a Gaussian kernel on
+  `ln(hour-1)`, bandwidth 1.0): bigger launches peak earlier and lower,
+  so the forecast leans toward the launches most like this one.
 - Per hour, the quantiles are `q_tau = p1 * exp(m + z_tau * sd)`, with `m`
-  and `sd` the mean and sample standard deviation of that hour's
+  and `sd` the kernel-weighted mean and standard deviation of that hour's
   log-ratios, and `z_tau` the standard normal quantile at each level. The
   spread is the spread past launches actually showed — it widens through
   the day as launches diverge — instead of a fixed guess.
@@ -36,7 +40,7 @@ usable hour 1), scoring each launch against the others:
 | model | launches | mean pinball loss |
 |---|---|---|
 | house baseline (flat, 0.15 spread) | hour-1 >= 50k (n=20) | 0.2509 |
-| this forecaster | hour-1 >= 50k (n=20) | **0.2119** |
+| this forecaster | hour-1 >= 50k (n=20) | **0.2030** |
 | this forecaster | all 37 | 0.5949 |
 
 The all-37 figure is dragged down by the tiny-hour-1 regime (games not

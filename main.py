@@ -23,14 +23,23 @@ case's own comparables (past big game launches' hourly Twitch curves).
     with hour-1 >= 50,000; >= 20,000 uses that tier; below that, all
     comparables.  A tier with fewer than 5 launches falls back to the next
     wider one.  (Chosen by leave-one-out pinball-loss scoring on the kit's
-    comparables: the 50k tier scores ~0.21 against the house baseline's
-    ~0.25 on the same launches; the unfiltered set scores ~0.71.)
+    comparables.)
+  - Within a tier, launches are weighted by how close their own hour-1
+    print is to the case's, in log space: a Gaussian kernel on
+    ln(hour-1) with bandwidth 1.0, so a launch whose hour-1 is 2.7x the
+    case's counts about 0.6 and one 7x away about 0.1.  Bigger launches
+    peak earlier and lower (the log hour-1 print and the evening ratio
+    correlate about -0.5 across the comparables), so the weighting pulls
+    the forecast toward the launches most like this one.  (Leave-one-out
+    pinball loss on the kit's comparables: the 50k tier scores ~0.20 with
+    the weighting, ~0.21 without it, against the house baseline's ~0.25
+    on the same launches; the unfiltered set scores ~0.71.)
   - For each hour, the quantiles are q_tau = p1 * exp(m + z_tau * sd), where
-    p1 is hour 1's print, m and sd are the mean and sample standard
-    deviation of that hour's log-ratios across the tier, and z_tau is the
-    standard normal quantile at each level.  The spread is honest: it is the
-    spread past launches actually showed, widening through the day as the
-    launches diverge, instead of a fixed guess.
+    p1 is hour 1's print, m and sd are the kernel-weighted mean and
+    standard deviation of that hour's log-ratios across the tier, and z_tau
+    is the standard normal quantile at each level.  The spread is honest:
+    it is the spread past launches actually showed, widening through the
+    day as the launches diverge, instead of a fixed guess.
 
 The program is deterministic (sorted inputs, no randomness, no clock, no
 network) and standard-library only, so two runs on one case write the same
@@ -66,6 +75,9 @@ Z = [-1.645, -0.674, 0.0, 0.674, 1.645]
 TIERS = [50000, 20000, 0]
 # A tier with fewer launches than this is too thin to calibrate on.
 MIN_CALIB = 5
+# Bandwidth of the Gaussian kernel on ln(hour-1) that weights launches by
+# how close their hour-1 print is to the case's (see the module docstring).
+LOG_BANDWIDTH = 1.0
 # Spread to use when an hour has a single calibration point.
 DEFAULT_SD = 0.30
 # The house baseline's spread, used only when an hour has no calibration
@@ -135,24 +147,46 @@ def calibration_tier(comparables, p1):
     return days
 
 
-def hour_log_ratios(days, hour):
-    """ln(viewers_h / viewers_1) across the calibration launches that have it."""
-    ratios = []
+def hour_log_ratios(days, hour, p1):
+    """One hour's log-ratios, each weighted by its launch's hour-1 closeness.
+
+    Returns a list of (ln(viewers_h / viewers_1), weight) pairs, one per
+    calibration launch that has the hour.  The weight is a Gaussian kernel
+    on ln(hour-1) around the case's own hour-1 print, bandwidth
+    LOG_BANDWIDTH, so launches sized like this one count most.
+    """
+    log_p1 = math.log(p1)
+    pairs = []
     for hours in days:
         if hour in hours and hours[hour] > 0:
-            ratios.append(math.log(hours[hour] / hours[1]))
-    return ratios
+            diff = math.log(hours[1]) - log_p1
+            weight = math.exp(-(diff * diff) / (2 * LOG_BANDWIDTH * LOG_BANDWIDTH))
+            pairs.append((math.log(hours[hour] / hours[1]), weight))
+    return pairs
+
+
+def weighted_mean_sd(pairs):
+    """The kernel-weighted mean and standard deviation of log-ratios.
+
+    The variance uses the effective sample size, so a few heavy weights do
+    not pretend to be many launches.
+    """
+    total = sum(w for _, w in pairs)
+    mean = sum(v * w for v, w in pairs) / total
+    var = sum(w * (v - mean) ** 2 for v, w in pairs) / total
+    n_eff = total * total / sum(w * w for _, w in pairs)
+    if n_eff > 1:
+        var *= n_eff / (n_eff - 1)
+    return mean, math.sqrt(max(var, 1e-12))
 
 
 def hour_quantiles(p1, days, hour):
     """The five quantiles for one hour, from that hour's log-ratio spread."""
-    values = hour_log_ratios(days, hour)
-    if len(values) >= 2:
-        mean = sum(values) / len(values)
-        var = sum((v - mean) ** 2 for v in values) / (len(values) - 1)
-        sd = math.sqrt(var)
-    elif len(values) == 1:
-        mean, sd = values[0], DEFAULT_SD
+    pairs = hour_log_ratios(days, hour, p1)
+    if len(pairs) >= 2:
+        mean, sd = weighted_mean_sd(pairs)
+    elif len(pairs) == 1:
+        mean, sd = pairs[0][0], DEFAULT_SD
     else:
         # No comparable has this hour: fall back to the house baseline's
         # flat median and widening spread rather than guessing a shape.
