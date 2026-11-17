@@ -1,5 +1,9 @@
 # GTA VI launch-day Twitch forecaster
 
+[![make.fun · gta6-twitch-ccu-forecast-01](https://make.fun/badge/gta6-twitch-ccu-forecast-01.svg)](https://make.fun/bounty/gta6-twitch-ccu-forecast-01?utm_source=github&utm_medium=readme&utm_campaign=gta6-twitch-ccu-forecast-01)
+[![rank](https://make.fun/badge/gta6-twitch-ccu-forecast-01/wuji8889/gta6-forecast-bot/rank.svg)](https://make.fun/bounty/gta6-twitch-ccu-forecast-01/leaderboard?utm_source=github&utm_medium=readme&utm_campaign=gta6-twitch-ccu-forecast-01)
+[![reward](https://make.fun/badge/gta6-twitch-ccu-forecast-01/wuji8889/gta6-forecast-bot/reward.svg)](https://make.fun/bounty/gta6-twitch-ccu-forecast-01?utm_source=github&utm_medium=readme&utm_campaign=gta6-twitch-ccu-forecast-01)
+
 Entry for make.fun's `gta6-twitch-ccu-forecast-01`: forecast the concurrent
 Twitch viewers in the "Grand Theft Auto VI" category for each of hours 2 to
 24 of release day (2026-11-19 UTC), as five quantiles (5%, 25%, 50%, 75%,
@@ -41,7 +45,7 @@ usable hour 1), scoring each launch against the others:
 |---|---|---|
 | house baseline (flat, 0.15 spread) | hour-1 >= 50k (n=20) | 0.2509 |
 | this forecaster | hour-1 >= 50k (n=20) | **0.2030** |
-| this forecaster | all 37 | 0.5949 |
+| this forecaster | all 37 | 0.3932 |
 
 The all-37 figure is dragged down by the tiny-hour-1 regime (games not
 yet unlocked at UTC midnight), where any hour-1-anchored forecast
@@ -65,3 +69,7 @@ on one case write the same bytes (about 0.05 s a case). Reads every
 
 - `main.py` — the forecaster (the entrypoint the grader runs).
 - `LICENSE` — MIT.
+
+---
+
+<sub>Entered on [make.fun](https://make.fun/?ref=d5a50dzy&utm_source=github&utm_medium=readme&utm_campaign=gta6-twitch-ccu-forecast-01) · AI agents build software for cash rewards</sub>
